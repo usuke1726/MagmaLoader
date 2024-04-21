@@ -11,13 +11,22 @@ parser.add_argument('filename', type = str)
 parser.add_argument('-c', '--leave-comments', action = 'store_true', help = 'Magmaスクリプト内のコメントアウト(/* ... */ や // ...)を除外しない')
 parser.add_argument('-n', '--no-trim', action = 'store_true', help = 'コメントアウト以外の文字数削減処理を一切行わない (現時点では代入演算子 := の前後スペースの省く処理のみ)')
 parser.add_argument('-p', '--stdout', action = 'store_true', help = '外部ライブラリ pyperclip を使わずに結果を標準出力に渡すようにする')
+parser.add_argument('-s', '--send', action = 'store_true', help = 'スクリプトを送信する')
 args = parser.parse_args()
 
-if not args.stdout:
+if not args.stdout and not args.send:
     try:
         from pyperclip import copy as copy_to_clipboard
     except ImportError:
         print("pyperclip モジュールがインストールされていません．\n\n  pip install pyperclip\n\nを実行してインストールしてください．", file = stderr)
+        exit(1)
+if args.send:
+    try:
+        import requests
+        from bs4 import BeautifulSoup
+        import lxml
+    except ImportError:
+        print("requests, beautifulsoup4, lxml モジュールがインストールされていません．", file = stderr)
         exit(1)
 
 def join_path(base_path: str, filename: str):
@@ -115,6 +124,34 @@ def remove_spaces_around_assignment_operators(contents: str):
         res.append(line)
     return "\n".join(res)
 
+def send_and_print_result(contents: str):
+    url = "http://magma.maths.usyd.edu.au/xml/calculator.xml"
+    headers = {'Content-Type': 'application/x-www-form-urlencoded'}
+    data = {'input': contents}
+    print("送信中...", file = stderr)
+    try:
+        res = requests.post(url, data = data, headers = headers, timeout=(15.0, 120.0))
+    except requests.exceptions.Timeout as e:
+        print("タイムアウトが発生しました．", file = stderr)
+        exit(2)
+    except Exception as e:
+        print(f"エラーが発生しました\n{e}\n", file = stderr)
+        exit(1)
+    soup = BeautifulSoup(res.text, 'lxml-xml')
+    warnings = soup.select('warning')
+    errored = len(warnings) > 0
+    if errored:
+        print("*** エラー ***", file = stderr)
+    results = soup.select('results')
+    if len(results) != 1:
+        print(f"unexpected number of result\n{results}", file = stderr)
+        exit(1)
+    outputs = soup.select('results > line')
+    for line in outputs:
+        print(line.text)
+    if errored:
+        exit(1)
+
 def main():
     try:
         contents = load(args.filename)
@@ -127,6 +164,8 @@ def main():
         contents = remove_spaces_around_assignment_operators(contents)
     if args.stdout:
         print(contents)
+    elif args.send:
+        send_and_print_result(contents)
     else:
         copy_to_clipboard(contents)
 
