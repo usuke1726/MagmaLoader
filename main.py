@@ -144,7 +144,16 @@ def send_and_print_result(contents: str):
         print("*** エラー ***", file = stderr)
     results = soup.select('results')
     if len(results) != 1:
-        print(f"unexpected number of result\n{results}", file = stderr)
+        offline = soup.select('offline')
+        title = soup.select('title')
+        if len(offline) > 0:
+            print("エラー：短時間に実行しすぎた可能性があります．", file = stderr)
+            for line in offline:
+                print(f"{line.text}", file = stderr)
+        elif len(title) > 0 and title[0].text == "504 Gateway Timeout":
+            print("エラー：実行に時間がかかりすぎているようです．", file = stderr)
+        else:
+            print(f"other error\nresults: {results}\ntext:{res.text}", file = stderr)
         exit(1)
     outputs = soup.select('results > line')
     for line in outputs:
