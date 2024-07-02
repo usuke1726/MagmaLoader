@@ -12,7 +12,7 @@ parser.add_argument('-c', '--leave-comments', action = 'store_true', help = 'Mag
 parser.add_argument('-n', '--no-trim', action = 'store_true', help = 'コメントアウト以外の文字数削減処理を一切行わない (現時点では代入演算子 := の前後スペースの省く処理のみ)')
 parser.add_argument('-p', '--stdout', action = 'store_true', help = '外部ライブラリ pyperclip を使わずに結果を標準出力に渡すようにする')
 parser.add_argument('-s', '--send', action = 'store_true', help = 'スクリプトを送信する')
-parser.add_argument('--rel', '--use-relative-mode', action = 'store_true', help = '相対パスモード("@/"から始まるパス)を有効化する')
+parser.add_argument('--disable-rel', '--no-rel', action = 'store_true', help = '相対パスモード("@/"から始まるパス)を無効化する')
 args = parser.parse_args()
 
 if not args.stdout and not args.send:
@@ -40,7 +40,7 @@ def join_path(base_path: str, filename: str):
         )
     )
 
-use_rel = args.rel
+use_rel = not args.disable_rel
 def load_recursively(base_path: str, path: str, depth: int = 0):
     if depth > 50:
         raise Exception("読み込み階層が深すぎます．循環参照の可能性があります．")
@@ -74,7 +74,7 @@ def load_recursively(base_path: str, path: str, depth: int = 0):
         for filename in filenames:
             if filename.startswith("@/"):
                 if not use_rel:
-                    raise Exception(f"相対パスモードを使用していますが，コマンドラインオプションで有効化されていません．\nパス: {filename} ({path})\n\nコマンドラインオプション --rel を追加して有効化してください．")
+                    raise Exception(f"相対パスモードを使用していますが，コマンドラインオプションで無効化されています．\nパス: {filename} ({path})\n\nコマンドラインオプション --disable-rel を外してください．")
                 filename = filename[2:]
                 load_path = join_path(path, filename)
                 error_mes = f"※ @モードを使用しています．loadで読み込むファイルは，{path} から見た相対パスになっていますか？"
