@@ -49,6 +49,8 @@ def load_recursively(base_path: str, path: str, depth: int = 0):
             body = "\n".join([s.strip() for s in f.readlines() if s.strip()])
     except Exception as e:
         raise Exception(f"ファイル {path} の読み込みに失敗しました")
+    if not args.leave_comments and not args.no_trim:
+        body = remove_comments(body)
     space_patttern = "[ \t\n]"
     head_pattern = f"(^|(?<=\n))({space_patttern}*)"
     tail_pattern = f"{space_patttern}*(;|$)"
